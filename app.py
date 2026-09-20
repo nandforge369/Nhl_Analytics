@@ -273,7 +273,6 @@ elif selected == "Team Info":
             "Select team below",
             conferences
         )
-        print(type(option))
         q1=text(f"""select team_id,logo_url,conference_name,division_name from teams where team_name = '{option}';""")
         result_q1 = connection.execute(q1)
         answer_from_query = result_q1.fetchall()
@@ -301,82 +300,173 @@ elif selected == "Team Info":
 
 elif selected == "Player Search":
     user_input = st.text_input("Enter player's name:", placeholder="Type here...")
-    time.
-    # Display the entered text
-    if user_input:
-        #"query"
-        q1=text(f"""select First_Name,Last_Name,Position,Jersey_Number,Birth_Date,Height_CM,Weight_KG from players where first_name LIKE '%A%' AND last_name like '%B%';""")
-        option = st.selectbox(
-            "Select Player",
-            ["t1", "t2", "t3","t4"]
-        )
-    logo_url = "https://assets.nhle.com/logos/nhl/svg/COL_light.svg"
-    # Assume these values
-    player_name = "John Carlson"
-    position = "D"
+    time.sleep(3)
+    with engine.connect() as connection:
+        # Display the entered text
+        if user_input:
+            #"query"
+            q1 = text(f"""select First_Name,Last_Name from players where first_name LIKE '%{user_input}%' or last_name like '%{user_input}%';""")
+            df_candidate_players = pd.read_sql(q1,connection)
+            players_list = list(df_candidate_players["First_Name"]+" "+df_candidate_players["Last_Name"])
+            option = st.selectbox(
+                "Select Player From Available options:",
+                players_list
+            )   
+            if option is not None:
+                q2 = text(f"""select Player_ID,First_Name,Last_Name,Position,Jersey_Number,Birth_Date,Height_CM,Weight_KG,Headshot_Url from players where concat(first_name, " " ,last_name) LIKE '%{option}%' LIMIT 1;""")
+                df_final_player = pd.read_sql(q2,connection)
+                player_name = option
+                logo_url = df_final_player["Headshot_Url"].iloc[0]
+                position = df_final_player["Position"].iloc[0]
+                player_id = df_final_player["Player_ID"].iloc[0]
+                df_final_player["Age"] = (
+                    pd.Timestamp.today().year
+                    - pd.to_datetime(df_final_player["Birth_Date"]).dt.year)
+                df_final_player["BMI"] = (
+                    df_final_player["Weight_KG"]/((df_final_player["Height_CM"]/100))**2
+                )
+                st.divider()
+                st.markdown(
+                        f"""
+                        <style>
+                        .player-card {{
+                            display: flex;
+                            align-items: center;
+                            padding: 10px 0 35px 0;
+                        }}
 
-    st.markdown(
-    f"""
-    <style>
-    .player-card {{
-        display: flex;
-        align-items: center;
-        padding: 10px 0 35px 0;
-    }}
+                        .player-photo {{
+                            width: 180px;
+                            height: 150px;
+                            object-fit: contain;
+                            margin-right: 35px;
+                        }}
 
-    .player-photo {{
-        width: 180px;
-        height: 150px;
-        object-fit: contain;
-        margin-right: 35px;
-    }}
+                        .player-info {{
+                            display: flex;
+                            flex-direction: column;
+                        }}
 
-    .player-info {{
-        display: flex;
-        flex-direction: column;
-    }}
+                        .player-name {{
+                            font-size: 22px;
+                            font-weight: 600;
+                            color: #ffffff;
+                            margin-bottom: 12px;
+                        }}
 
-    .player-name {{
-        font-size: 22px;
-        font-weight: 600;
-        color: #ffffff;
-        margin-bottom: 12px;
-    }}
+                        .player-position {{
+                            font-size: 14px;
+                            color: #ffffff;
+                        }}
+                        </style>
 
-    .player-position {{
-        font-size: 14px;
-        color: #ffffff;
-    }}
-    </style>
+                        <div class="player-card">
+                        <img src="{logo_url}" class="player-photo">
+                        <div class="player-info"><div class="player-name">{player_name}</div>
 
-    <div class="player-card">
-    <img src="{logo_url}" class="player-photo">
+                        <div class="player-position">
+                        Position: {position}
+                        </div>
+                        </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+                player_data = df_final_player.loc[:, [
+                    "Player_ID",
+                    "First_Name",
+                    "Last_Name",
+                    "Jersey_Number",
+                    "Age",
+                    "Height_CM",
+                    "Weight_KG",
+                    "BMI"
+                ]]
+                st.table(player_data,hide_index=True)
+                st.divider()
+                q3 = text(f"""select player_id,Sum(Goals) as "goals",Sum(Assists) as "assists" ,Sum(Points) as "points",Count(Game_ID) as "games" from game_stats where player_id = {player_id} group by player_id;""")
+                df_player_stat = pd.read_sql(q3,connection)
+                if not df_player_stat.empty:
+                    goals = df_player_stat["goals"].iloc[0]
+                    assists = df_player_stat["assists"].iloc[0]
+                    points = df_player_stat["points"].iloc[0]
+                    games = df_player_stat["games"].iloc[0]
+                    st.markdown("""
+                        <style>
+                            .metric-card {
+                                    background-color: #00000;
+                                    font-color: #FFFFFF;
+                                    border: 2px solid #e1e1e1;
+                                    border-radius: 0.5rem;
+                                    padding: 1rem 0.9rem;
+                                    height: 6.875rem;
+                                    box-sizing: border-box;
+                                    align-items:center;
+                                }
+                        
+                                .metric-card:hover {
+                                    transform: translateY(-5px);
+                                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                                    border-color: #999999;       /* subtle change on hover */
+                                }
+                        
+                                .metric-label {
+                                    font-size: 1rem;
+                                    color: #FFFFFF;
+                                    margin-bottom: 8px;
+                                }
+                        
+                                .metric-value {
+                                    font-size: 1.3rem;
+                                    color: #FFFFFF;
+                                    font-weight: 400;
+                                    margin-left: 0rem;
+                                }
+                        </style""",unsafe_allow_html=True)
+                    col1, col2,col3,col4 = st.columns(4)
 
-    <div class="player-info">
-    <div class="player-name">
-    {player_name}
-    <span style="font-size:13px;color:#aaa;">↗</span>
-    </div>
+                    with col1:
 
-    <div class="player-position">
-    Position: {position}
-    </div>
-    </div>
+                        st.markdown(
+                            '<div class="metric-card">'
+                            '<div class="metric-label">🏒 Goals</div>'
+                            f'<div class="metric-value">{int(goals)}</div>'
+                            '</div></br>',
+                            unsafe_allow_html=True
+                        )
+                    with col2:
 
-    </div>
-    """,
-    unsafe_allow_html=True
-    )
-    st.divider()
-    df = pd.DataFrame(
-        [[5, 6, 7]],
-        columns=["Image", "Column A", "Column B"]
-    )
-    st.table(df)
-# -----------------------------
-# Player Card
-# -----------------------------
-    
+                        st.markdown(
+                            '<div class="metric-card">'
+                            '<div class="metric-label">🏆 Games</div>'
+                            f'<div class="metric-value">{int(games)}</div>'
+                            '</div>',
+                            unsafe_allow_html=True
+                        )
+
+                    with col3:
+
+                        st.markdown(
+                            '<div class="metric-card">'
+                            '<div class="metric-label">🤝Assists</div>'
+                            f'<div class="metric-value">{int(assists)}</div>'
+                            '</div> </br>',
+                            unsafe_allow_html=True
+                        )
+                    with col4:
+                        st.markdown(
+                            '<div class="metric-card">'
+                            '<div class="metric-label">🎯Points</div>'
+                            f'<div class="metric-value">{int(points)}</div>'
+                            '</div>',
+                            unsafe_allow_html=True
+                        )
+                else:
+                    st.markdown("SORRY!! Stat not available")
+            else:
+                st.markdown("SORRY!! No Player available. Kindly retry with different name!")
+            time.sleep(1.5)
+
 elif selected == "Game Results":
     st.title("Game Results")
     genre = st.radio(
