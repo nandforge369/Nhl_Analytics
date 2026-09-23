@@ -19,6 +19,10 @@ engine = create_engine(
     #mysql+pymysql://<username>:<password>@<host>/<dbname>[?<options>]
 )
 
+def execute_query(query):
+    with engine.connect() as connection:
+        st.session_state.query_result = pd.read_sql(query, connection)
+
 if selected == "Home":
 
     st.markdown("""
@@ -246,7 +250,15 @@ elif selected == "Standings":
         elif option == "Eastern":
             sql = text("""SELECT t.Logo_URL,T.Team_Name,T.Conference_Name,T.Division_Name,S.Wins,S.Losses,S.Points,S.Goals_For,S.Goals_Against FROM standings s inner join teams t on s.team_id = t.team_id where t.Conference_Name = "Eastern" ORDER BY S.POINTS DESC LIMIT 10;""")
             df = pd.read_sql(sql,connection)       
-
+        st.markdown("""
+        <style>
+            .stMainBlockContainer {
+                max-width: 75%;
+                padding-left: 0rem;
+                padding-right: 20px;
+            }
+        </style>
+        """, unsafe_allow_html=True)
         # Create DataFrame with inline image
         df["Logo_URL"] = df["Logo_URL"].apply(
             lambda url: f'<a href="{url}" target="_blank"><img src="{url}" width="50"></a>')
@@ -296,7 +308,7 @@ elif selected == "Team Info":
         with col2:
             st.markdown("<h3 style='text-align: left; color: #ffffff;  font-size:26px; padding: 4px;'>Team Roaster</h3>", unsafe_allow_html=True)
             st.markdown("<hr style='border:1px solid white;'>", unsafe_allow_html=True)
-            st.dataframe(df,hide_index=True)
+            st.table(df,hide_index=True)
 
 elif selected == "Player Search":
     user_input = st.text_input("Enter player's name:", placeholder="Type here...")
@@ -370,8 +382,7 @@ elif selected == "Player Search":
                         </div>
                         </div>
                         """,
-                        unsafe_allow_html=True
-                    )
+                        unsafe_allow_html=True)
                 player_data = df_final_player.loc[:, [
                     "Player_ID",
                     "First_Name",
@@ -469,46 +480,213 @@ elif selected == "Player Search":
 
 elif selected == "Game Results":
     st.title("Game Results")
-    genre = st.radio(
-        "Game State",
-        ["All", "OFF", "FUT"],
-    )    
-    today = datetime.datetime.now()
-    d = st.date_input("When's your birthday", today)
-    df = pd.DataFrame(
-        [[5, 6, 7]],
-        columns=["Image", "Column A", "Column B"]
-    )
-    st.table(df)
+    with engine.connect() as connection:
+        q1=text("""SELECT DISTINCT Game_State FROM Games;""")
+        game_state_list = ["All"]
+        for x in connection.execute(q1).fetchall():
+            game_state_list.append(x[0])
+        print(game_state_list)
+        genre = st.radio(
+            "Game State",
+            game_state_list,
+        )
+        today = datetime.date.today()
+        date = st.date_input("Filter By Date:", today)
+        if genre != "All":
+            q2 = text("""
+                SELECT (Select Team_Name FROM Teams where Team_ID = G.Home_Team_ID) AS HomeTeam,(Select Team_Name FROM Teams where Team_ID = G.Away_Team_ID) AS AwayTeam,G.Home_Score, G.Away_Score, G.Venue_Name FROM Games G where 
+                G.Game_State = :genre
+                AND G.Game_Date = :date
+            """)
+
+            df = pd.read_sql(
+                q2,
+                connection,
+                params={
+                    "genre": genre,
+                    "date": date
+                }
+            )
+        else:
+            q2 = text("""SELECT (Select Team_Name FROM Teams where Team_ID = G.Home_Team_ID) AS HomeTeam,(Select Team_Name FROM Teams where Team_ID = G.Away_Team_ID) AS AwayTeam,G.Home_Score, G.Away_Score, G.Venue_Name FROM Games G where G.Game_Date = :date
+            """)
+
+            df = pd.read_sql(
+                q2,
+                connection,
+                params={
+                    "date": date
+                }
+            )            
+        time.sleep(2)
+        if not df.empty:
+            st.table(df)
+        else:
+            st.markdown("Not games found for selected state and date. Provide some other combination!")
 elif selected == "SQL Query Explorer":
-    st.title("🔎 SQL Query Explorer")
-    st.markdown("Pick a ready-made query below, or choose Custom Query to write your own")
-    option = st.selectbox(
-        "Choose a query",
-        ["Custom Query", "Top 10 Games", "Top 10 Players"]
-    )
-    if option == "Custom Query":
-        user_text = st.text_area("SQL Query", placeholder="Custom Query", height=150)
-    st.button("▶  Run Query")
-    df = pd.DataFrame(
-        [[5, 6, 7]],
-        columns=["Image", "Column A", "Column B"]
-    )
-    st.table(df)
+    with engine.connect() as connection:
+        st.title("🔎 SQL Query Explorer")
+        st.markdown("Pick a ready-made query below, or choose Custom Query to write your own")
+        queries = {
+            "Top 10 players by points": """
+                SELECT
+                    CONCAT(p.First_Name, ' ', p.Last_Name) AS Player,
+                    s.Goals,
+                    s.Assists,
+                    s.Points
+                FROM Skater_Season_Stats s
+                JOIN Players p ON s.Player_ID = p.Player_ID
+                ORDER BY s.Points DESC
+                LIMIT 10;
+            """,
+
+            "Top 10 goal scorers": """
+                SELECT
+                    CONCAT(p.First_Name, ' ', p.Last_Name) AS Player,
+                    s.Goals,
+                    s.Games_Played
+                FROM Skater_Season_Stats s
+                JOIN Players p ON s.Player_ID = p.Player_ID
+                ORDER BY s.Goals DESC
+                LIMIT 10;
+            """,
+
+            "Top 10 players by assists": """
+                SELECT
+                    CONCAT(p.First_Name, ' ', p.Last_Name) AS Player,
+                    s.Assists,
+                    s.Games_Played
+                FROM Skater_Season_Stats s
+                JOIN Players p ON s.Player_ID = p.Player_ID
+                ORDER BY s.Assists DESC
+                LIMIT 10;
+            """,
+
+            "Top 10 players by plus/minus": """
+                SELECT
+                    CONCAT(p.First_Name, ' ', p.Last_Name) AS Player,
+                    s.Plus_Minus
+                FROM Skater_Season_Stats s
+                JOIN Players p ON s.Player_ID = p.Player_ID
+                ORDER BY s.Plus_Minus DESC
+                LIMIT 10;
+            """,
+
+            "Top 10 players by shots": """
+                SELECT
+                    CONCAT(p.First_Name, ' ', p.Last_Name) AS Player,
+                    s.Shots,
+                    s.Goals
+                FROM Skater_Season_Stats s
+                JOIN Players p ON s.Player_ID = p.Player_ID
+                ORDER BY s.Shots DESC
+                LIMIT 10;
+            """,
+
+            "Top 10 teams by points": """
+                SELECT
+                    t.Team_Name,
+                    s.Wins,
+                    s.Losses,
+                    s.Points
+                FROM Standings s
+                JOIN Teams t ON s.Team_ID = t.Team_ID
+                ORDER BY s.Points DESC
+                LIMIT 10;
+            """,
+
+            "Top 10 teams by goals scored": """
+                SELECT
+                    t.Team_Name,
+                    s.Goals_For,
+                    s.Games_Played
+                FROM Standings s
+                JOIN Teams t ON s.Team_ID = t.Team_ID
+                ORDER BY s.Goals_For DESC
+                LIMIT 10;
+            """,
+
+            "Top 10 goalies by save percentage": """
+                SELECT
+                    CONCAT(p.First_Name, ' ', p.Last_Name) AS Goalie,
+                    g.Save_pct,
+                    g.Wins,
+                    g.Shutouts
+                FROM Goalie_Season_Stats g
+                JOIN Players p ON g.Player_ID = p.Player_ID
+                ORDER BY g.Save_pct DESC
+                LIMIT 10;
+            """,
+
+            "Top 10 goalies by shutouts": """
+                SELECT
+                    CONCAT(p.First_Name, ' ', p.Last_Name) AS Goalie,
+                    g.Shutouts,
+                    g.Save_pct,
+                    g.Wins
+                FROM Goalie_Season_Stats g
+                JOIN Players p ON g.Player_ID = p.Player_ID
+                ORDER BY g.Shutouts DESC
+                LIMIT 10;
+            """,
+
+            "Top 10 games by total goals": """
+                SELECT
+                    Game_ID,
+                    Game_Date,
+                    Home_Team_ID,
+                    Away_Team_ID,
+                    Home_Score,
+                    Away_Score,
+                    (Home_Score + Away_Score) AS Total_Goals
+                FROM Games
+                ORDER BY Total_Goals DESC
+                LIMIT 10;
+            """
+        }
+        option = st.selectbox(
+            "Choose a query",
+            ["Custom Query"] + list(queries.keys())
+        )
+        if option == "Custom Query":
+            user_text = st.text_area("SQL Query", placeholder="Custom Query", height=150)
+            time.sleep(5)
+        query_to_execute = queries.get(option) if option != "Custom Query" else text(user_text)
+        st.button("▶ Run Query",on_click=execute_query,args=(query_to_execute,))
+
+        if "query_result" in st.session_state:
+            st.table(st.session_state.query_result)
+
 elif selected == "Leaderboards":
-    st.title("Player Metrics Selector")
+    with engine.connect() as connection:
+        st.title("Player Metrics Selector")
 
-    metrics = ["🥅 Goals", "🎯Assists", "🕙 Penalty Minutes", "🧤 Save %", "🏆Team Wins"]
+        q1=text("""SELECT (SELECT CONCAT(First_Name," ",Last_Name) from Players where Player_ID = SS.Player_ID) as Player,SS.Goals FROM skater_season_stats ss order by SS.Goals DESC LIMIT 10;""")
 
-    selected_metric = st.segmented_control("Pick a metric", metrics)
-    df = pd.DataFrame(
-        [
-            [5, 6, 7]
-        ],
-        columns=["Image", "Column A", "Column B"]
-    )
+        q2=text("""SELECT (SELECT CONCAT(First_Name," ",Last_Name) from Players where Player_ID = SS.Player_ID) as Player,SS.Assists FROM skater_season_stats ss order by SS.Assists DESC LIMIT 10;""")
 
-    # Render DataFrame with HTML enabled
-    st.write(df.to_html(escape=False), unsafe_allow_html=True)
+        q3=text("""SELECT (SELECT CONCAT(First_Name," ",Last_Name) from Players where Player_ID = SS.Player_ID) as Player,SS.Penalty_Min as 'Penalty Minutes' FROM skater_season_stats ss where ss.penalty_min>0 order by SS.Penalty_Min LIMIT 10;""")
 
+        q4=text("""SELECT (SELECT CONCAT(First_Name," ",Last_Name) from Players where Player_ID = GG.Player_ID) as Player,ROUND(GG.Save_pct*100,2) AS 'Save Percentage' FROM goalie_season_stats GG order by GG.Save_pct DESC LIMIT 10;""")
 
+        q5=text("""SELECT CONCAT(p.First_Name, ' ', p.Last_Name) AS Player,ROUND(s.Points / s.Games_Played, 2) AS Points_Per_Game FROM Skater_Season_Stats s JOIN Players p ON s.Player_ID = p.Player_ID WHERE s.Games_Played > 0 ORDER BY Points_Per_Game DESC LIMIT 10;""")
+
+        metrics = {
+            "🥅 Goals": q1,
+            "🎯 Assists": q2,
+            "🕙 Penalty Minutes": q3,
+            "🧤 Save %": q4,
+            "🏆 Team Wins": q5
+        }
+
+        selected_metric = st.segmented_control(
+            "Pick a metric",
+            list(metrics.keys()),default="🥅 Goals"
+        )
+        query = metrics.get(selected_metric)
+        if query is not None:
+                df = pd.read_sql(query, connection)
+                st.table(df)
+        else:
+            st.markdown("Select a option above to see stats")
+        time.sleep(2)
