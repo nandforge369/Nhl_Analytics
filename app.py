@@ -28,15 +28,11 @@ if selected == "Home":
     st.markdown("""
     <style>
 
-        /* ---------- Main page ---------- */
-
         .block-container {
             max-width: 56.25rem;
             padding-top: 8rem;
             padding-left: 0.05rem;
         }
-
-        /* ---------- Hero ---------- */
 
         .hero-title {
             font-size: 3rem;
@@ -59,7 +55,6 @@ if selected == "Home":
             margin-bottom: 3rem;
             margin-left: -11.65rem;
         }
-        /* ---------- Metric cards ---------- */
 
         .metric-card {
             background-color: #00000;
@@ -75,7 +70,7 @@ if selected == "Home":
         .metric-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            border-color: #999999;       /* subtle change on hover */
+            border-color: #999999;  
         }
 
         .metric-label {
@@ -90,9 +85,6 @@ if selected == "Home":
             font-weight: 400;
             margin-left: 0rem;
         }
-
-
-        /* ---------- Bottom divider ---------- */
 
         .bottom-line {
             border: 0;
@@ -259,15 +251,9 @@ elif selected == "Standings":
             }
         </style>
         """, unsafe_allow_html=True)
-        # Create DataFrame with inline image
+        
         df["Logo_URL"] = df["Logo_URL"].apply(
             lambda url: f'<a href="{url}" target="_blank"><img src="{url}" width="50"></a>')
-    #      pd.DataFrame(
-    #     [
-    #         [f'<a href="{logo_url}" target="_blank"><img src="{logo_url}" width="100"></a>', 6, 7]
-    #     ],
-    #     columns=["Image", "Column A", "Column B"]
-    # )
 
     df.insert(0, "No.", range(1, len(df) + 1))
     st.write(df.to_html(index=False,escape=False), unsafe_allow_html=True)
@@ -294,17 +280,13 @@ elif selected == "Team Info":
         division_name = answer_from_query[0][3]
         q2 = text(f"""select First_Name,Last_Name,Position,Jersey_Number,Birth_Date,Height_CM,Weight_KG from players where team_id = {team_id}""")
         df = pd.read_sql(q2,connection)
-
-        # Create two columns
-        col1, col2 = st.columns([1, 2])  # adjust ratio for sizing
-
-        # Left column: logo
+        
+        col1, col2 = st.columns([1, 2])
         with col1:
             st.image(logo_url, width=150)
             st.markdown(f"Conference: {conf_name}")
             st.markdown(f"Division: {division_name}")
 
-        # Right column: table
         with col2:
             st.markdown("<h3 style='text-align: left; color: #ffffff;  font-size:26px; padding: 4px;'>Team Roaster</h3>", unsafe_allow_html=True)
             st.markdown("<hr style='border:1px solid white;'>", unsafe_allow_html=True)
@@ -314,9 +296,7 @@ elif selected == "Player Search":
     user_input = st.text_input("Enter player's name:", placeholder="Type here...")
     time.sleep(3)
     with engine.connect() as connection:
-        # Display the entered text
         if user_input:
-            #"query"
             q1 = text(f"""select First_Name,Last_Name from players where first_name LIKE '%{user_input}%' or last_name like '%{user_input}%';""")
             df_candidate_players = pd.read_sql(q1,connection)
             players_list = list(df_candidate_players["First_Name"]+" "+df_candidate_players["Last_Name"])
@@ -523,17 +503,14 @@ elif selected == "Game Results":
             st.table(df)
         else:
             st.markdown("Not games found for selected state and date. Provide some other combination!")
+            
 elif selected == "SQL Query Explorer":
     with engine.connect() as connection:
         st.title("🔎 SQL Query Explorer")
         st.markdown("Pick a ready-made query below, or choose Custom Query to write your own")
         queries = {
             "Top 10 players by points": """
-                SELECT
-                    CONCAT(p.First_Name, ' ', p.Last_Name) AS Player,
-                    s.Goals,
-                    s.Assists,
-                    s.Points
+                SELECT CONCAT(p.First_Name, ' ', p.Last_Name) AS Player,s.Goals,s.Assists,s.Points
                 FROM Skater_Season_Stats s
                 JOIN Players p ON s.Player_ID = p.Player_ID
                 ORDER BY s.Points DESC
@@ -541,10 +518,7 @@ elif selected == "SQL Query Explorer":
             """,
 
             "Top 10 goal scorers": """
-                SELECT
-                    CONCAT(p.First_Name, ' ', p.Last_Name) AS Player,
-                    s.Goals,
-                    s.Games_Played
+                SELECT CONCAT(p.First_Name, ' ', p.Last_Name) AS Player,s.Goals,s.Games_Played
                 FROM Skater_Season_Stats s
                 JOIN Players p ON s.Player_ID = p.Player_ID
                 ORDER BY s.Goals DESC
@@ -552,10 +526,7 @@ elif selected == "SQL Query Explorer":
             """,
 
             "Top 10 players by assists": """
-                SELECT
-                    CONCAT(p.First_Name, ' ', p.Last_Name) AS Player,
-                    s.Assists,
-                    s.Games_Played
+                SELECT CONCAT(p.First_Name, ' ', p.Last_Name) AS Player,s.Assists,s.Games_Played
                 FROM Skater_Season_Stats s
                 JOIN Players p ON s.Player_ID = p.Player_ID
                 ORDER BY s.Assists DESC
@@ -563,9 +534,7 @@ elif selected == "SQL Query Explorer":
             """,
 
             "Top 10 players by plus/minus": """
-                SELECT
-                    CONCAT(p.First_Name, ' ', p.Last_Name) AS Player,
-                    s.Plus_Minus
+                SELECT CONCAT(p.First_Name, ' ', p.Last_Name) AS Player,s.Plus_Minus
                 FROM Skater_Season_Stats s
                 JOIN Players p ON s.Player_ID = p.Player_ID
                 ORDER BY s.Plus_Minus DESC
@@ -573,10 +542,7 @@ elif selected == "SQL Query Explorer":
             """,
 
             "Top 10 players by shots": """
-                SELECT
-                    CONCAT(p.First_Name, ' ', p.Last_Name) AS Player,
-                    s.Shots,
-                    s.Goals
+                SELECT CONCAT(p.First_Name, ' ', p.Last_Name) AS Player,s.Shots,s.Goals
                 FROM Skater_Season_Stats s
                 JOIN Players p ON s.Player_ID = p.Player_ID
                 ORDER BY s.Shots DESC
@@ -584,11 +550,7 @@ elif selected == "SQL Query Explorer":
             """,
 
             "Top 10 teams by points": """
-                SELECT
-                    t.Team_Name,
-                    s.Wins,
-                    s.Losses,
-                    s.Points
+                SELECT t.Team_Name,s.Wins,s.Losses,s.Points
                 FROM Standings s
                 JOIN Teams t ON s.Team_ID = t.Team_ID
                 ORDER BY s.Points DESC
@@ -596,10 +558,7 @@ elif selected == "SQL Query Explorer":
             """,
 
             "Top 10 teams by goals scored": """
-                SELECT
-                    t.Team_Name,
-                    s.Goals_For,
-                    s.Games_Played
+                SELECT t.Team_Name,s.Goals_For,s.Games_Played
                 FROM Standings s
                 JOIN Teams t ON s.Team_ID = t.Team_ID
                 ORDER BY s.Goals_For DESC
@@ -607,11 +566,7 @@ elif selected == "SQL Query Explorer":
             """,
 
             "Top 10 goalies by save percentage": """
-                SELECT
-                    CONCAT(p.First_Name, ' ', p.Last_Name) AS Goalie,
-                    g.Save_pct,
-                    g.Wins,
-                    g.Shutouts
+                SELECT CONCAT(p.First_Name, ' ', p.Last_Name) AS Goalie,g.Save_pct,g.Wins,g.Shutouts
                 FROM Goalie_Season_Stats g
                 JOIN Players p ON g.Player_ID = p.Player_ID
                 ORDER BY g.Save_pct DESC
@@ -619,11 +574,7 @@ elif selected == "SQL Query Explorer":
             """,
 
             "Top 10 goalies by shutouts": """
-                SELECT
-                    CONCAT(p.First_Name, ' ', p.Last_Name) AS Goalie,
-                    g.Shutouts,
-                    g.Save_pct,
-                    g.Wins
+                SELECT CONCAT(p.First_Name, ' ', p.Last_Name) AS Goalie,g.Shutouts,g.Save_pct,g.Wins
                 FROM Goalie_Season_Stats g
                 JOIN Players p ON g.Player_ID = p.Player_ID
                 ORDER BY g.Shutouts DESC
@@ -631,14 +582,7 @@ elif selected == "SQL Query Explorer":
             """,
 
             "Top 10 games by total goals": """
-                SELECT
-                    Game_ID,
-                    Game_Date,
-                    Home_Team_ID,
-                    Away_Team_ID,
-                    Home_Score,
-                    Away_Score,
-                    (Home_Score + Away_Score) AS Total_Goals
+                SELECT Game_ID,Game_Date,Home_Team_ID,Away_Team_ID,Home_Score,Away_Score,(Home_Score + Away_Score) AS Total_Goals
                 FROM Games
                 ORDER BY Total_Goals DESC
                 LIMIT 10;
@@ -676,7 +620,7 @@ elif selected == "Leaderboards":
             "🎯 Assists": q2,
             "🕙 Penalty Minutes": q3,
             "🧤 Save %": q4,
-            "🏆 Team Wins": q5
+            "🏆 Points Per Game": q5
         }
 
         selected_metric = st.segmented_control(
