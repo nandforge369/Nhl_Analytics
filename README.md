@@ -20,7 +20,6 @@ The streamlit dashboard consists of 7 pages which can be accessed using the side
 
 <img width="301" height="561" alt="image" src="https://github.com/user-attachments/assets/1e0bc55e-8156-4a2b-ab9c-4a531b7b9ac9" /></br>
 
-There are SQLs written in app.py file which connects to the DB and provides the result in the corresponding dashboard. The user can navigate at their will and edge scenarios like no input or data not found are also handled so things work as expected as well for such cases.
 |Side bar               |Description|
 | :------------------: | :----------------------------------------------------------------------------------------------------------------------------------: |
 | Home               | Brief summary of the NHL games with data paramenters teams, players, games, goals, and leaders.                                    |
@@ -30,3 +29,5 @@ There are SQLs written in app.py file which connects to the DB and provides the 
 | Game Results       | Filter games by date and game state to view scores and venues.                                                                     |
 | Leaderboards       | Compare top players across goals, assists, penalties, saves, and points per game.                                                  |
 | SQL Query Explorer | Run predefined or provide MYSQL queries to explore NHL database statistics and intresting insights.                                |
+
+There are SQLs written in app.py file which connects to the DB and provides the result in the corresponding dashboard. The user can navigate at their will and edge scenarios like no input or data not found are also handled so things work as expected as well for such cases.
